@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#140822">
+  <title>Админка ♡</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%9D%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;600;700&family=Inter:wght@400;500;600;700&family=Marck+Script&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/admin.css">
+</head>
+<body>
+  <div class="bgfx" aria-hidden="true"><i></i><i></i><i></i></div>
+
+  <!-- вход -->
+  <section class="auth" id="auth" hidden>
+    <form class="auth-card" id="authForm">
+      <div class="logo">♡</div>
+      <h1 id="authTitle">Вход в админку</h1>
+      <p class="muted" id="authText">Введи пароль</p>
+      <input type="password" id="authPw" placeholder="Пароль" autocomplete="current-password" required>
+      <input type="password" id="authPw2" placeholder="Повтори пароль" autocomplete="new-password" hidden>
+      <button class="btn primary" type="submit" id="authBtn">Войти</button>
+      <p class="err" id="authErr"></p>
+    </form>
+  </section>
+
+  <!-- приложение -->
+  <div class="app" id="app" hidden>
+    <header class="top">
+      <div class="brand"><span class="logo sm">♡</span><span>Свидание <b>admin</b></span></div>
+      <div class="tunnel" id="tunnel"></div>
+      <div class="top-actions">
+        <a class="btn ghost sm" href="/?preview=1" target="_blank" rel="noopener">Предпросмотр ↗</a>
+        <button class="btn ghost sm" id="logout">Выйти</button>
+      </div>
+    </header>
+
+    <nav class="tabs" id="tabs">
+      <button data-tab="records" class="on"><span>🎬</span>Записи <em id="liveCount" hidden></em></button>
+      <button data-tab="links"><span>🔗</span>Ссылки</button>
+      <button data-tab="texts"><span>✍️</span>Тексты</button>
+      <button data-tab="langs"><span>🌍</span>Языки</button>
+      <button data-tab="person"><span>💌</span>Персонализация</button>
+      <button data-tab="style"><span>🎵</span>Музыка и стиль</button>
+      <button data-tab="settings"><span>🔔</span>Уведомления</button>
+    </nav>
+
+    <main class="main">
+      <!-- ЗАПИСИ -->
+      <section class="tab" data-tab="records">
+        <div class="stats" id="stats"></div>
+        <div class="row between wrap">
+          <h2>Прохождения</h2>
+          <div class="filters" id="filters"></div>
+        </div>
+        <div class="list" id="recList"></div>
+      </section>
+
+      <!-- ССЫЛКИ -->
+      <section class="tab" data-tab="links" hidden>
+        <h2>Ссылки для получательниц</h2>
+        <p class="muted">Для каждой девушки — своя ссылка с её именем. В записях будет видно, кто по какой ссылке пришёл.</p>
+        <form class="panel inline-form" id="invForm">
+          <label>Имя (как обращаться)<input id="invName" placeholder="Маша" maxlength="60" required></label>
+          <label>Адрес ссылки (необязательно)<input id="invSlug" placeholder="masha" maxlength="40"></label>
+          <label>Язык<select id="invLang"></select></label>
+          <button class="btn primary" type="submit">Создать ссылку</button>
+        </form>
+        <div class="list" id="invList"></div>
+      </section>
+
+      <!-- ТЕКСТЫ -->
+      <section class="tab" data-tab="texts" hidden>
+        <div class="row between wrap">
+          <h2>Все надписи</h2>
+          <div class="seg lang-seg" id="textLang"></div>
+        </div>
+        <p class="muted small">Всё сохраняется автоматически и остаётся после перезапуска. У каждого языка — свой набор надписей.</p>
+        <div class="panel hint-panel">
+          <b>Подстановки:</b>
+          <code>{name}</code> имя получательницы ·
+          <code>{from}</code> твоё имя ·
+          <code>{fromDat}</code> кому (Максиму) ·
+          <code>{fromIns}</code> с кем (Максимом) ·
+          <code>{date}</code> выбранный день ·
+          <code>{time}</code> выбранное время
+        </div>
+        <div id="textGroups"></div>
+      </section>
+
+      <!-- ЯЗЫКИ -->
+      <section class="tab" data-tab="langs" hidden>
+        <h2>Язык приглашения</h2>
+        <p class="muted">Все надписи уже переведены: дни недели, месяцы и формат даты переключаются сами.
+          Выбранный язык будет у основной ссылки и у всех ссылок, где стоит «по умолчанию».</p>
+        <div class="langs" id="langCards"></div>
+        <div class="panel hint-panel mt">
+          Для отдельной девушки язык можно выбрать во вкладке <b>«Ссылки»</b>: например, основная анкета на русском, а ссылка для Оли — на украинском.
+          Поправить перевод можно во вкладке <b>«Тексты»</b>: переключи там язык сверху.
+        </div>
+      </section>
+
+      <!-- ПЕРСОНАЛИЗАЦИЯ -->
+      <section class="tab" data-tab="person" hidden>
+        <h2>Персонализация</h2>
+        <div class="grid2">
+          <div class="panel">
+            <div class="row between wrap"><h3>Имена</h3><div class="seg lang-seg" id="nameLang"></div></div>
+            <p class="muted small" id="nameHint"></p>
+            <div id="nameFields"></div>
+          </div>
+          <div class="panel">
+            <h3>Дата и время</h3>
+            <label>Сколько дней показывать (начиная с завтра)<input data-s="daysCount" type="number" min="3" max="14"></label>
+            <label>Время «днём» (через запятую)<input data-s="dayTimes"></label>
+            <label>Время «вечером» (через запятую)<input data-s="eveningTimes"></label>
+            <label>Длительность для календаря, часов<input data-s="duration" type="number" min="1" max="12"></label>
+          </div>
+          <div class="panel">
+            <h3>Эффекты</h3>
+            <label class="toggle"><input type="checkbox" data-s="showIntro"><span></span>Заставка «нажми, чтобы открыть» (нужна для автозапуска музыки)</label>
+            <label class="toggle"><input type="checkbox" data-s="cursor"><span></span>Кастомный курсор-сердечко (на компьютере)</label>
+            <label class="toggle"><input type="checkbox" data-s="tilt"><span></span>3D-наклон карточки за мышкой</label>
+          </div>
+        </div>
+      </section>
+
+      <!-- СТИЛЬ -->
+      <section class="tab" data-tab="style" hidden>
+        <h2>Музыка и стиль</h2>
+        <div class="grid2">
+          <div class="panel">
+            <h3>Цветовая тема</h3>
+            <div class="themes" id="themes"></div>
+          </div>
+          <div class="panel">
+            <h3>Музыка</h3>
+            <div class="seg" id="musicMode">
+              <button data-v="builtin">Шкатулка ✨</button>
+              <button data-v="custom">Свой трек</button>
+              <button data-v="off">Без музыки</button>
+            </div>
+            <p class="muted small" id="musicHint"></p>
+            <div id="musicCustom">
+              <div class="upload" id="upload">
+                <input type="file" id="musicFile" accept="audio/*" hidden>
+                <button class="btn ghost" id="musicPick">Загрузить mp3 / m4a / ogg</button>
+                <span class="muted small" id="musicName"></span>
+              </div>
+              <audio id="musicPreview" controls preload="none"></audio>
+            </div>
+            <label>Громкость <b id="volVal"></b><input type="range" data-s="musicVolume" min="0" max="1" step="0.05"></label>
+          </div>
+        </div>
+      </section>
+
+      <!-- УВЕДОМЛЕНИЯ -->
+      <section class="tab" data-tab="settings" hidden>
+        <h2>Уведомления и доступ</h2>
+        <div class="grid2">
+          <div class="panel">
+            <h3>Telegram</h3>
+            <p class="muted small">Бот пришлёт сообщение, когда она откроет ссылку, скажет «да», выберет дату или напишет ответ.
+              Создай бота у <b>@BotFather</b>, напиши ему что-нибудь, а свой chat id узнай у <b>@userinfobot</b>.</p>
+            <label class="toggle"><input type="checkbox" id="tgOn"><span></span>Включить уведомления</label>
+            <label>Токен бота<input id="tgToken" placeholder="123456:ABC-DEF…" autocomplete="off"></label>
+            <label>Chat ID<input id="tgChat" placeholder="123456789" autocomplete="off"></label>
+            <button class="btn ghost" id="tgTest">Отправить тестовое</button>
+          </div>
+          <div class="panel">
+            <h3>В этой вкладке</h3>
+            <label class="toggle"><input type="checkbox" id="sndOn"><span></span>Звук, когда кто-то открыл анкету или ответил</label>
+            <label class="toggle"><input type="checkbox" id="ntfOn"><span></span>Системные уведомления браузера</label>
+            <h3 class="mt">Пароль</h3>
+            <form id="pwForm" class="stack">
+              <input type="password" id="pwOld" placeholder="Текущий пароль" autocomplete="current-password" required>
+              <input type="password" id="pwNew" placeholder="Новый пароль" autocomplete="new-password" required>
+              <button class="btn ghost" type="submit">Сменить пароль</button>
+            </form>
+            <h3 class="mt danger-t">Опасная зона</h3>
+            <button class="btn danger" id="wipe">Удалить все записи</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="savebar" id="savebar" hidden>
+      <i class="save-dot"></i><span id="saveText">Сохранено ✓</span>
+    </div>
+  </div>
+
+  <!-- ПЛЕЕР -->
+  <section class="player" id="player" hidden>
+    <header class="pl-head">
+      <button class="icon-btn" id="plClose" aria-label="Закрыть">←</button>
+      <div class="pl-title"><b id="plName"></b><span class="muted" id="plWhen"></span></div>
+      <span class="live-pill" id="plLive" hidden>● онлайн</span>
+      <button class="icon-btn" id="plDel" title="Удалить запись">🗑</button>
+    </header>
+    <div class="pl-body">
+      <div class="pl-stage" id="plStage">
+        <div class="pl-device" id="plDevice"><iframe id="plFrame" title="Запись" sandbox="allow-scripts allow-same-origin"></iframe></div>
+        <div class="pl-empty" id="plEmpty" hidden>В записи пока нет событий</div>
+      </div>
+      <aside class="pl-side">
+        <div class="pl-sum" id="plSum"></div>
+        <h4>Хронология</h4>
+        <div class="pl-log" id="plLog"></div>
+      </aside>
+    </div>
+    <footer class="pl-controls">
+      <button class="play" id="plPlay" aria-label="Играть">▶</button>
+      <span class="pl-time" id="plTime">0:00 / 0:00</span>
+      <div class="timeline" id="plTl"><div class="tl-fill" id="plFill"></div><div class="tl-marks" id="plMarks"></div><div class="tl-knob" id="plKnob"></div></div>
+      <select id="plSpeed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select>
+      <label class="toggle sm"><input type="checkbox" id="plSkip" checked><span></span>без пауз</label>
+    </footer>
+  </section>
+
+  <div class="toasts" id="toasts"></div>
+  <script src="/schema.js"></script>
+  <script src="/admin.js"></script>
+</body>
+</html>

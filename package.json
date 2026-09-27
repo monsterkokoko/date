@@ -1,0 +1,12 @@
+{
+  "name": "svidanie",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Анкета-приглашение на свидание с админкой и записью прохождений",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "tunnel": "node server.js --tunnel"
+  },
+  "engines": { "node": ">=18" }
+}
