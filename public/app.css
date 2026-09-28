@@ -87,6 +87,11 @@ textarea { font: inherit; }
 #fxTop { z-index: 60; }
 
 /* ═════════════ Сцена и карточка ═════════════ */
+/* переменные наклона меняются на каждое движение мыши — ненаследуемые, чтобы не пересчитывать стили всего содержимого */
+@property --rx { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+@property --ry { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+@property --mx { syntax: '<percentage>'; inherits: false; initial-value: 50%; }
+@property --my { syntax: '<percentage>'; inherits: false; initial-value: -20%; }
 #stage {
   position: relative; z-index: 2;
   min-height: 100vh; min-height: 100svh;
@@ -353,8 +358,8 @@ body.instant .rv, body.instant .w { animation-duration: 1ms !important; animatio
 .chip.sel::after {
   content: ''; position: absolute; top: 4px; right: 5px; width: 9px; height: 9px;
   background: #ff3d85;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.2 0 3.6 1.3 4.3 2.5h2c.7-1.2 2.1-2.5 4.3-2.5 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21z'/%3E%3C/svg%3E") center/contain no-repeat;
-          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.2 0 3.6 1.3 4.3 2.5h2c.7-1.2 2.1-2.5 4.3-2.5 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21z'/%3E%3C/svg%3E") center/contain no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21C11.3 20.4 2.5 14.8 2.5 8.6 2.5 5.4 4.8 3.2 7.6 3.2 9.6 3.2 11.2 4.4 12 6.3 12.8 4.4 14.4 3.2 16.4 3.2 19.2 3.2 21.5 5.4 21.5 8.6 21.5 14.8 12.7 20.4 12 21Z'/%3E%3C/svg%3E") center/contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 21C11.3 20.4 2.5 14.8 2.5 8.6 2.5 5.4 4.8 3.2 7.6 3.2 9.6 3.2 11.2 4.4 12 6.3 12.8 4.4 14.4 3.2 16.4 3.2 19.2 3.2 21.5 5.4 21.5 8.6 21.5 14.8 12.7 20.4 12 21Z'/%3E%3C/svg%3E") center/contain no-repeat;
   animation: pop .4s cubic-bezier(.3, 1.8, .5, 1);
 }
 @keyframes pop { from { transform: scale(0); } }
@@ -510,6 +515,43 @@ body.replay-touch .finger { display: block; }
 .replay-veil[hidden] { display: none; }
 body.replay #stage { pointer-events: none; }
 body.replay .note textarea { pointer-events: none; }
+
+/* ═════════════ Облегчённый режим для телефонов ═════════════ */
+/* На iPhone размытия поверх анимированного холста и blur внутри анимаций пересчитываются каждый кадр.
+   Здесь те же эффекты, но без фильтров: мягкость пятен даёт градиент, стекло — полупрозрачная заливка. */
+.lite .blob { filter: none; mix-blend-mode: normal; will-change: transform; }
+.lite .b1 { background: radial-gradient(closest-side, var(--blob1) 30%, transparent); }
+.lite .b2 { background: radial-gradient(closest-side, var(--blob2) 30%, transparent); }
+.lite .b3 { background: radial-gradient(closest-side, var(--blob3) 30%, transparent); }
+.lite .b4 { background: radial-gradient(closest-side, var(--blob4) 30%, transparent); }
+.lite .grain { display: none; }
+.lite .card {
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  background: linear-gradient(160deg, rgba(255, 255, 255, .13), rgba(255, 255, 255, .035) 55%, rgba(255, 255, 255, .06)), rgba(30, 8, 46, .6);
+  background: linear-gradient(160deg, rgba(255, 255, 255, .13), rgba(255, 255, 255, .035) 55%, rgba(255, 255, 255, .06)), color-mix(in srgb, var(--bg1) 62%, transparent);
+}
+.lite .btn.no, .lite .cat-bubble, .lite .music-btn, .lite .replay-veil { backdrop-filter: none; -webkit-backdrop-filter: none; }
+.lite .cat-bubble { background: rgba(70, 24, 90, .9); }
+.lite .music-btn { background: rgba(40, 14, 60, .8); }
+.lite .pf-dim { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(18, 4, 34, .74); }
+.lite .pf-wave { box-shadow: none; will-change: transform, opacity; }
+.lite .pf-heart { filter: drop-shadow(0 0 22px rgba(255, 90, 160, .85)); will-change: transform, opacity; }
+.lite .pf-title { text-shadow: 0 0 18px rgba(255, 120, 190, .85), 0 2px 12px rgba(80, 0, 60, .6); animation-name: pfOutL; }
+.lite .pf-sub { animation-name: rvL, pfOutL; }
+.lite .env-glow { filter: none; }
+.lite .card.hidden, .lite .btns.veiled { filter: none; }
+/* появления и уходы — без blur */
+.lite .rv:not(.hint), .lite .w { animation-name: rvL; }
+.lite .chip.pop-in { animation-name: chipInL; }
+.lite .screen.leaving { animation-name: leaveL; }
+.lite .caption.swap { animation-name: capSwapL; }
+.lite .btn.no.poof { animation-name: poofL; }
+@keyframes rvL { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes chipInL { from { opacity: 0; transform: translateY(10px) scale(.8); } to { opacity: 1; transform: none; } }
+@keyframes leaveL { to { opacity: 0; transform: translateY(-14px) scale(.97); } }
+@keyframes capSwapL { 0% { opacity: 0; transform: translateY(6px); } 100% { opacity: 1; transform: none; } }
+@keyframes poofL { to { opacity: 0; transform: scale(1.6) rotate(20deg); } }
+@keyframes pfOutL { to { opacity: 0; transform: translateY(-14px) scale(.96); } }
 
 @media (prefers-reduced-motion: reduce) {
   .blob, .grain, .cat, .cat .tail { animation: none !important; }

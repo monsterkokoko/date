@@ -6,6 +6,9 @@
   const MODE = qs.has('replay') ? 'replay' : qs.has('preview') ? 'preview' : 'live';
   const REPLAY = MODE === 'replay';
   const TOUCH = matchMedia('(hover: none), (pointer: coarse)').matches;
+  // облегчённый режим для телефонов: без тяжёлых размытий и с меньшим числом частиц
+  const LITE = TOUCH && !REPLAY && !qs.has('full');
+  if (LITE) document.documentElement.classList.add('lite');
   const SLUG = (location.pathname.match(/^\/p\/([\w-]+)/) || [])[1] || qs.get('to') || '';
 
   const $ = (s, r = document) => r.querySelector(s);
@@ -14,7 +17,7 @@
   const rand = (a, b) => a + Math.random() * (b - a);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-  const HEART_D = 'M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.2 0 3.6 1.3 4.3 2.5h2c.7-1.2 2.1-2.5 4.3-2.5 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21z';
+  const HEART_D = 'M12 21C11.3 20.4 2.5 14.8 2.5 8.6 2.5 5.4 4.8 3.2 7.6 3.2 9.6 3.2 11.2 4.4 12 6.3 12.8 4.4 14.4 3.2 16.4 3.2 19.2 3.2 21.5 5.4 21.5 8.6 21.5 14.8 12.7 20.4 12 21Z';
   const heartIcon = (cls = 'hs') => `<svg class="${cls}" viewBox="0 0 24 24"><path d="${HEART_D}"/></svg>`;
 
   let CFG = null;
@@ -40,7 +43,14 @@
 
   const isoOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const dateOf = (iso) => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d); };
-  const dayLong = (iso) => (iso ? DAY_FMT.format(dateOf(iso)) : '');
+  // tx() зовётся на каждый текст — форматируем дату один раз, пока она не сменилась
+  let dayMemo = ['', ''];
+  const dayLong = (iso) => {
+    if (!iso) return '';
+    const k = iso + cal().locale;
+    if (dayMemo[0] !== k) dayMemo = [k, DAY_FMT.format(dateOf(iso))];
+    return dayMemo[1];
+  };
 
   function vars(extra) {
     const s = CFG.settings;
@@ -142,7 +152,7 @@
     const dustMax = TOUCH ? 30 : 60;
 
     function resize() {
-      DPR = Math.min(2, window.devicePixelRatio || 1);
+      DPR = Math.min(LITE ? 1.5 : 2, window.devicePixelRatio || 1);
       W = innerWidth; H = innerHeight;
       cv.width = cvTop.width = W * DPR; cv.height = cvTop.height = H * DPR;
     }
@@ -162,7 +172,10 @@
     for (let i = 0; i < ambientMax; i++) ambient(true);
     for (let i = 0; i < dustMax; i++) dust(true);
 
+    const lessOnLite = (n) => (LITE ? Math.ceil(n * 0.6) : n);
+
     function burst(x, y, n = 24, o = {}) {
+      n = lessOnLite(n);
       for (let i = 0; i < n; i++) {
         const a = o.up ? rand(-Math.PI * 0.9, -Math.PI * 0.1) : rand(0, Math.PI * 2);
         const v = rand(o.min || 2, o.max || 7);
@@ -175,6 +188,7 @@
     }
     // частицы разлетаются так, что складываются в контур сердца
     function heartBurst(x, y, k = 5, n = 70, color) {
+      n = lessOnLite(n);
       for (let i = 0; i < n; i++) {
         const t = (i / n) * Math.PI * 2;
         const hx = 16 * Math.pow(Math.sin(t), 3);
@@ -200,20 +214,35 @@
       }
     }
 
+    // сердечко каждого цвета рисуется один раз в спрайт, дальше только копируется — заливка пути на каждую частицу слишком дорогая
+    const sprites = {};
+    function sprite(c) {
+      let s = sprites[c];
+      if (!s) {
+        s = sprites[c] = document.createElement('canvas');
+        s.width = s.height = 64;
+        const g = s.getContext('2d');
+        g.scale(64 / 24, 64 / 24); g.fillStyle = c; g.fill(heart);
+      }
+      return s;
+    }
     function drawHeart(g, x, y, s, rot, c, a) {
-      g.save();
-      g.translate(x, y); g.rotate(rot); g.scale(s / 24, s / 24); g.translate(-12, -12);
-      g.globalAlpha = a; g.fillStyle = c; g.fill(heart);
-      g.restore();
+      const k = (s / 24) * DPR, cs = Math.cos(rot) * k, sn = Math.sin(rot) * k;
+      g.setTransform(cs, sn, -sn, cs, x * DPR, y * DPR);
+      g.globalAlpha = a;
+      g.drawImage(sprite(c), -12, -12, 24, 24);
+      g.setTransform(DPR, 0, 0, DPR, 0, 0);
     }
 
-    let last = performance.now();
+    let last = performance.now(), topDirty = true;
     function frame(now) {
       const dt = Math.min(3, (now - last) / 16.67); last = now;
       ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
       ctx.clearRect(0, 0, W, H);
       top.setTransform(DPR, 0, 0, DPR, 0, 0);
-      top.clearRect(0, 0, W, H);
+      // верхний холст почти всё время пуст — не чистим его зря
+      if (topDirty) top.clearRect(0, 0, W, H);
+      topDirty = false;
       let na = 0, nd = 0;
       for (let i = parts.length - 1; i >= 0; i--) {
         const p = parts[i];
@@ -232,6 +261,7 @@
           ctx.globalAlpha = a; ctx.fillStyle = '#fff';
           ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283); ctx.fill();
         } else if (p.k === 'b') {
+          topDirty = true;
           const dr = p.drag || 0.985;
           p.vx *= dr; p.vy = p.vy * dr + p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt; p.life -= p.dec * dt;
           if (p.life <= 0 || p.y > H + 40) { parts.splice(i, 1); continue; }
@@ -240,6 +270,7 @@
             top.beginPath(); top.arc(p.x, p.y, p.s / 5, 0, 6.283); top.fill();
           } else drawHeart(top, p.x, p.y, p.s, p.rot, p.c, Math.min(1, p.life * 1.5));
         } else if (p.k === 'k') {
+          topDirty = true;
           p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 0.12 * dt;
           spark(p.x + rand(-1.5, 1.5), p.y + 4);
           top.globalAlpha = 1; top.fillStyle = '#fff';
@@ -251,11 +282,13 @@
             continue;
           }
         } else if (p.k === 'r') {
+          topDirty = true;
           p.life -= 0.045 * dt; p.r += (34 - p.r) * 0.14 * dt;
           if (p.life <= 0) { parts.splice(i, 1); continue; }
           top.globalAlpha = p.life * 0.8; top.strokeStyle = '#ffc6e0'; top.lineWidth = 2 * p.life + 0.5;
           top.beginPath(); top.arc(p.x, p.y, p.r, 0, 6.283); top.stroke();
         } else if (p.k === 's') {
+          topDirty = true;
           p.x += p.vx * dt; p.y += p.vy * dt; p.life -= 0.03 * dt;
           if (p.life <= 0) { parts.splice(i, 1); continue; }
           top.globalAlpha = p.life * 0.9; top.fillStyle = p.c;
@@ -292,14 +325,22 @@
     function midi(n) { return 440 * Math.pow(2, (n - 69) / 12); }
 
     function makeReverb() {
-      const len = ctx.sampleRate * 3.2;
+      const len = (ctx.sampleRate * 3.2) | 0;
       const buf = ctx.createBuffer(2, len, ctx.sampleRate);
-      for (let c = 0; c < 2; c++) {
-        const d = buf.getChannelData(c);
-        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6);
-      }
       const conv = ctx.createConvolver();
-      conv.buffer = buf;
+      // хвост реверба считается кусками между кадрами — целиком он подвешивал анимацию открытия подарка
+      const CHUNK = 1 << 12;
+      let i0 = 0;
+      const step = () => {
+        const i1 = Math.min(len, i0 + CHUNK);
+        for (let c = 0; c < 2; c++) {
+          const d = buf.getChannelData(c);
+          for (let i = i0; i < i1; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6);
+        }
+        i0 = i1;
+        if (i0 < len) setTimeout(step, 16); else conv.buffer = buf;
+      };
+      setTimeout(step, 0);
       return conv;
     }
 
@@ -988,7 +1029,7 @@
   }, { passive: false });
   // после появления снимаем анимационные классы, чтобы работали hover/transform
   card.addEventListener('animationend', (e) => {
-    if (e.animationName !== 'rv' && e.animationName !== 'chipIn') return;
+    if (!['rv', 'rvL', 'chipIn', 'chipInL'].includes(e.animationName)) return;
     const c = e.target.classList;
     c.remove('rv', 'pop-in', 'w');
     if (c.contains('grad-a') || c.contains('grad-g')) c.add('shim');
@@ -1008,32 +1049,36 @@
   let cx = -100, cy = -100, rx = -100, ry = -100;
   const useCursor = () => CFG && CFG.settings.cursor && (!TOUCH || REPLAY);
 
-  function pointerAt(x, y, fromReplay) {
+  const shine = $('.card-shine', card);
+  function pointerAt(x, y, fromReplay, target) {
     cx = x; cy = y;
     lookAt(x, y);
-    // наклон карточки
+    // наклон карточки (--mx/--my — на самом блике: переменные на карточке пересчитывали стили всего её содержимого)
     if (CFG && CFG.settings.tilt && (!TOUCH || fromReplay === 'mouse')) {
       const r = card.getBoundingClientRect();
       const nx = (x - (r.left + r.width / 2)) / innerWidth, ny = (y - (r.top + r.height / 2)) / innerHeight;
       card.style.setProperty('--ry', (nx * 6).toFixed(2) + 'deg');
       card.style.setProperty('--rx', (-ny * 6).toFixed(2) + 'deg');
-      card.style.setProperty('--mx', ((x - r.left) / r.width * 100).toFixed(1) + '%');
-      card.style.setProperty('--my', ((y - r.top) / r.height * 100).toFixed(1) + '%');
+      shine.style.setProperty('--mx', ((x - r.left) / r.width * 100).toFixed(1) + '%');
+      shine.style.setProperty('--my', ((y - r.top) / r.height * 100).toFixed(1) + '%');
     }
-    // hover-состояние (для реплея — вручную)
-    const el = document.elementFromPoint(x, y);
-    const hovEl = el && el.closest('button, .chip');
-    cursor.classList.toggle('hover', !!hovEl && !(hovEl.classList.contains('cta') && !hovEl.classList.contains('ready')));
-    if (fromReplay) {
-      $$('.hov').forEach((n) => n !== hovEl && n.classList.remove('hov'));
-      hovEl && hovEl.classList.add('hov');
+    // hover-состояние: вживую элемент под курсором приходит в событии, hit-test (дорогой) нужен только плееру
+    if (fromReplay || !TOUCH) {
+      const el = fromReplay ? document.elementFromPoint(x, y) : target;
+      const hovEl = el && el.closest ? el.closest('button, .chip') : null;
+      cursor.classList.toggle('hover', !!hovEl && !(hovEl.classList.contains('cta') && !hovEl.classList.contains('ready')));
+      if (fromReplay) {
+        $$('.hov').forEach((n) => n !== hovEl && n.classList.remove('hov'));
+        hovEl && hovEl.classList.add('hov');
+      }
     }
     if (!TOUCH && !REPLAY && Math.random() < 0.35) FX.spark(x + rand(-4, 4), y + rand(-4, 4));
     if (fromReplay === 'mouse' && Math.random() < 0.35) FX.spark(x, y);
   }
 
   const curHeart = cursor.querySelector('.cursor-heart'), curRing = cursor.querySelector('.cursor-ring');
-  (function cursorLoop() {
+  // на телефоне курсора и «пальца» нет — не гоняем цикл впустую
+  if (!TOUCH || REPLAY) (function cursorLoop() {
     rx += (cx - rx) * 0.18; ry += (cy - ry) * 0.18;
     curHeart.style.translate = `${cx}px ${cy}px`;
     curRing.style.translate = `${rx}px ${ry}px`;
@@ -1043,18 +1088,26 @@
 
   if (!REPLAY) {
     let lastM = 0, lastX = -1, lastY = -1, down = false, lastS = 0;
+    // мышь шлёт до 250 событий в секунду, а экран обновляется 60 раз — обрабатываем только последнее за кадр
+    let pend = null;
+    const flushMove = () => {
+      const { x, y, target, mouse } = pend;
+      pend = null;
+      pointerAt(x, y, null, target);
+      // «Нет» убегает, когда курсор подбирается близко
+      if (mouse && state.step === 'ask' && !state.noGone) {
+        const no = $('.btn.no', card);
+        if (no) {
+          const r = no.getBoundingClientRect();
+          const m = 16;
+          if (x > r.left - m && x < r.right + m && y > r.top - m && y < r.bottom + m) tryDodge(x, y);
+        }
+      }
+    };
     addEventListener('pointermove', (e) => {
       if (e.pointerType === 'mouse' || down) {
-        pointerAt(e.clientX, e.clientY);
-        // «Нет» убегает, когда курсор подбирается близко
-        if (e.pointerType === 'mouse' && state.step === 'ask' && !state.noGone) {
-          const no = $('.btn.no', card);
-          if (no) {
-            const r = no.getBoundingClientRect();
-            const m = 16;
-            if (e.clientX > r.left - m && e.clientX < r.right + m && e.clientY > r.top - m && e.clientY < r.bottom + m) tryDodge(e.clientX, e.clientY);
-          }
-        }
+        if (!pend) requestAnimationFrame(flushMove);
+        pend = { x: e.clientX, y: e.clientY, target: e.target, mouse: e.pointerType === 'mouse' };
       }
       const now = performance.now();
       if ((e.pointerType === 'mouse' || down) && now - lastM > 33 && (Math.abs(e.clientX - lastX) + Math.abs(e.clientY - lastY) > 2)) {
@@ -1065,7 +1118,7 @@
     addEventListener('pointerdown', (e) => {
       down = e.pointerType !== 'mouse';
       cursor.classList.add('down');
-      pointerAt(e.clientX, e.clientY);
+      pointerAt(e.clientX, e.clientY, null, e.target);
       Rec.push('d', [Math.round(e.clientX), Math.round(e.clientY)]);
       clickBurst(e.clientX, e.clientY);
       if (CFG && !CFG.settings.showIntro) Music.start();
